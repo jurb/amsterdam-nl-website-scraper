@@ -2,6 +2,9 @@
 
 Scripts to scrape contents (text and images) from www.amsterdam.nl and process the HTML into clean text files.
 
+| ![Homescreen](./media/homescreen.png) |
+|:---:|
+
 ## Background
 
 These scripts are designed to scrape and process the contents of the Amsterdam.nl website, extracting text and images for analysis and archival purposes. The project makes use of asynchronous requests to efficiently handle multiple pages and resources.
