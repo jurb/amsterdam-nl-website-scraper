@@ -1,0 +1,7 @@
+beautifulsoup4
+aiohttp
+pandas
+tqdm
+lxml
+openpyxl
+asyncio
