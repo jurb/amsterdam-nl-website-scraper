@@ -8,13 +8,7 @@ These scripts are designed to scrape and process the contents of the Amsterdam.n
 
 ## Folder Structure
 
-* `data`: Stores sample data and output files from the scraping process.
-* `docs`: Additional documentation if required.
-* `notebooks`: Jupyter notebooks for tutorials or exploratory analysis.
-* `res`: Resources such as images used for documentation.
-* `scripts`: Contains scripts for automating various tasks related to the project.
-* `src`: All source code files specific to this project.
-* `tests`: Unit tests to validate the functionality of the code.
+ * [`scripts`](./sripts) _Scraper scripts_
 
 ## Installation
 
@@ -30,7 +24,7 @@ These scripts are designed to scrape and process the contents of the Amsterdam.n
     pip install -r requirements.txt
     ```
 
-    The code has been tested with Python 3.x on Linux/MacOS/Windows.
+    The code has been tested with Python 3.10.0 on Linux/MacOS/Windows.
 
 ## Usage
 
@@ -38,8 +32,7 @@ These scripts are designed to scrape and process the contents of the Amsterdam.n
 
 First, use the `scrape_amsterdam_nl.py` script to scrape HTML pages and images from the Amsterdam.nl website.
 
-1. Ensure the URLs to scrape are defined in the configuration file.
-2. Run the script:
+1. Run the script:
 
     ```bash
     python scrape_amsterdam_nl.py
@@ -51,8 +44,7 @@ First, use the `scrape_amsterdam_nl.py` script to scrape HTML pages and images f
 
 After scraping, use the `html_to_txt.py` script to convert the downloaded HTML pages into clean text files.
 
-1. Ensure the scraped HTML files are in the directory specified in the configuration.
-2. Run the script:
+1. Run the script:
 
     ```bash
     python html_to_txt.py
@@ -60,32 +52,16 @@ After scraping, use the `html_to_txt.py` script to convert the downloaded HTML p
 
    This will process the HTML files, extracting the main content and saving it as text files.
 
-## How it works
+## Contributing
 
-### Input
+Feel free to help out! [Open an issue](https://github.com/Amsterdam-AI-Team/Accessible_Route_Planning/issues), submit a [PR](https://github.com/Amsterdam-AI-Team/Accessible_Route_Planning/pulls) or [contact us](https://amsterdamintelligence.com/contact/).
 
-- **scrape_amsterdam_nl.py**: Fetches HTML content and images from URLs defined in the configuration.
-- **html_to_txt.py**: Takes the scraped HTML files from a specified directory.
 
-### Algorithm
+## Acknowledgements
 
-1. **scrape_amsterdam_nl.py**:
-   - Utilizes asynchronous HTTP requests to efficiently scrape and save HTML pages and images.
-   - Tracks saved content to avoid redundancy and records any failed downloads.
+This repository was created by [Amsterdam Intelligence](https://amsterdamintelligence.com/) for the City of Amsterdam.
 
-2. **html_to_txt.py**:
-   - Uses BeautifulSoup to parse HTML files, extracting main content based on predefined selectors.
-   - Processes the extracted content to handle links and dynamic elements, saving the result as clean text files.
+## License 
 
-### Output
+This project is licensed under the terms of the European Union Public License 1.2 (EUPL-1.2).
 
-- **scrape_amsterdam_nl.py**: Saves HTML pages and images into designated directories, with logs of any failed downloads.
-- **html_to_txt.py**: Outputs text files containing the cleaned main content of the HTML pages.
-
-## Contribution
-
-Contributions are welcome. Please submit a pull request or open an issue for any suggestions or improvements.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE.md file for details.
