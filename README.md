@@ -1,75 +1,91 @@
-# www.amsterdam.nl scraper
+# Amsterdam.nl Web Scraper
 
-scraper to get contents (text and images) of www.amsterdam.nl
+Scripts to scrape contents (text and images) from www.amsterdam.nl and process the HTML into clean text files.
 
 ## Background
 
+These scripts are designed to scrape and process the contents of the Amsterdam.nl website, extracting text and images for analysis and archival purposes. The project makes use of asynchronous requests to efficiently handle multiple pages and resources.
+
 ## Folder Structure
 
-* [`data`](./data): Sample data for demo purposes
-* [`docs`](./docs): If main [README.md](./README.md) is not enough
-* [`notebooks`](./notebooks): Jupyter notebooks / tutorials
-* [`res`](./res): Relevant resources, e.g. [`images`](./res/images/) for the documentation
-* [`scripts`](./scripts): Scripts for automating tasks
-* [`src`](./src): All sourcecode files specific to this project
-* [`tests`](./tests) Unit tests
-* ...
+* `data`: Stores sample data and output files from the scraping process.
+* `docs`: Additional documentation if required.
+* `notebooks`: Jupyter notebooks for tutorials or exploratory analysis.
+* `res`: Resources such as images used for documentation.
+* `scripts`: Contains scripts for automating various tasks related to the project.
+* `src`: All source code files specific to this project.
+* `tests`: Unit tests to validate the functionality of the code.
 
-## Installation 
+## Installation
 
-1) Clone this repository:
+1. Clone this repository:
 
-```bash
-git clone https://github.com/Amsterdam-AI-Team/amsterdam_nl_website_scraper.git
-```
+    ```bash
+    git clone https://github.com/Amsterdam-AI-Team/amsterdam_nl_website_scraper.git
+    ```
 
+2. Install all dependencies:
 
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-
-2) Install all dependencies:
-    
-
-
-```bash
-pip install -r requirements.txt
-```
-
-
-
-The code has been tested with Python x.x on Linux/MacOS/Windows. 
+    The code has been tested with Python 3.x on Linux/MacOS/Windows.
 
 ## Usage
 
+### Step 1: Scrape HTML and Images
+
+First, use the `scrape_amsterdam_nl.py` script to scrape HTML pages and images from the Amsterdam.nl website.
+
+1. Ensure the URLs to scrape are defined in the configuration file.
+2. Run the script:
+
+    ```bash
+    python scrape_amsterdam_nl.py
+    ```
+
+   This will download and save all HTML pages and images from the specified URLs into designated directories.
+
+### Step 2: Convert HTML to Text
+
+After scraping, use the `html_to_txt.py` script to convert the downloaded HTML pages into clean text files.
+
+1. Ensure the scraped HTML files are in the directory specified in the configuration.
+2. Run the script:
+
+    ```bash
+    python html_to_txt.py
+    ```
+
+   This will process the HTML files, extracting the main content and saving it as text files.
+
 ## How it works
 
-Can be divided in subsections:
+### Input
 
-### input
-### algorithm
-### output
+- **scrape_amsterdam_nl.py**: Fetches HTML content and images from URLs defined in the configuration.
+- **html_to_txt.py**: Takes the scraped HTML files from a specified directory.
 
-OR
+### Algorithm
 
-### training
-### prediction
-### evaluation
+1. **scrape_amsterdam_nl.py**:
+   - Utilizes asynchronous HTTP requests to efficiently scrape and save HTML pages and images.
+   - Tracks saved content to avoid redundancy and records any failed downloads.
 
-## Contributing
+2. **html_to_txt.py**:
+   - Uses BeautifulSoup to parse HTML files, extracting main content based on predefined selectors.
+   - Processes the extracted content to handle links and dynamic elements, saving the result as clean text files.
 
-Feel free to help out! [Open an issue](https://github.com/Amsterdam-AI-Team/amsterdam_nl_website_scraper/issues), submit a [PR](https://github.com/Amsterdam-AI-Team/amsterdam_nl_website_scraper/pulls) or [contact us](https://amsterdamintelligence.com/contact/).
+### Output
 
+- **scrape_amsterdam_nl.py**: Saves HTML pages and images into designated directories, with logs of any failed downloads.
+- **html_to_txt.py**: Outputs text files containing the cleaned main content of the HTML pages.
 
+## Contribution
 
+Contributions are welcome. Please submit a pull request or open an issue for any suggestions or improvements.
 
-## Acknowledgements
+## License
 
-This repository was created by [Amsterdam Intelligence](https://amsterdamintelligence.com/) for the City of Amsterdam.
-
-
-
-Optional: add citation or references here.
-
-
-## License 
-
-This project is licensed under the terms of the European Union Public License 1.2 (EUPL-1.2).
+This project is licensed under the MIT License - see the LICENSE.md file for details.
