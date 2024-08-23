@@ -2,8 +2,11 @@
 
 Scripts to scrape contents (text and images) from www.amsterdam.nl and process the HTML into clean text files.
 
-| ![Homescreen](./media/homescreen.png) |
-|:---:|
+<figure align="center">
+  <img
+  src="media/homescreen.png"
+  alt="amsterdam.nl homescreen">
+</figure>
 
 ## Background
 
