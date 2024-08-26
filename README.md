@@ -21,7 +21,7 @@ These scripts are designed to scrape and process the contents of the Amsterdam.n
 1. Clone this repository:
 
     ```bash
-    git clone https://github.com/Amsterdam-AI-Team/amsterdam_nl_website_scraper.git
+    git clone https://github.com/Amsterdam-AI-Team/amsterdam-nl-website-scraper.git
     ```
 
 2. Install all dependencies:
@@ -30,37 +30,43 @@ These scripts are designed to scrape and process the contents of the Amsterdam.n
     pip install -r requirements.txt
     ```
 
-    The code has been tested with Python 3.10.0 on Linux/MacOS/Windows.
+The code has been tested with Python 3.10.0 on Linux/MacOS/Windows.
 
 ## Usage
 
-### Step 1: Scrape HTML and Images
+### Step 1: Navigate to scripts
 
-First, use the `scrape_amsterdam_nl.py` script to scrape HTML pages and images from the Amsterdam.nl website.
+First, navigate to the scripts directory:
 
-1. Run the script:
+```bash
+cd scripts
+```
 
-    ```bash
-    python scrape_amsterdam_nl.py
-    ```
+This will download and save all HTML pages and images from the specified URLs into designated directories.
 
-   This will download and save all HTML pages and images from the specified URLs into designated directories.
+### Step 2: Scrape HTML and Images
 
-### Step 2: Convert HTML to Text
+Second, run the `scrape_amsterdam_nl.py` script to scrape HTML pages and images from the Amsterdam.nl website:
 
-After scraping, use the `html_to_txt.py` script to convert the downloaded HTML pages into clean text files.
+```bash
+python3 scrape_amsterdam_nl.py
+```
 
-1. Run the script:
+This will download and save all HTML pages and images from the specified URLs into designated directories.
 
-    ```bash
-    python html_to_txt.py
-    ```
+### Step 3: Convert HTML to Text
 
-   This will process the HTML files, extracting the main content and saving it as text files.
+Third, after scraping, run the `html_to_txt.py` script to convert the downloaded HTML pages into clean text files:
+
+```bash
+python3 html_to_txt.py
+```
+
+This will process the HTML files, extracting the main content and saving it as text files.
 
 ## Contributing
 
-Feel free to help out! [Open an issue](https://github.com/Amsterdam-AI-Team/Accessible_Route_Planning/issues), submit a [PR](https://github.com/Amsterdam-AI-Team/Accessible_Route_Planning/pulls) or [contact us](https://amsterdamintelligence.com/contact/).
+Feel free to help out! [Open an issue](https://github.com/Amsterdam-AI-Team/amsterdam-nl-website-scraper/issues), submit a [PR](https://github.com/Amsterdam-AI-Team/amsterdam-nl-website-scraper/pulls) or [contact us](https://amsterdamintelligence.com/contact/).
 
 
 ## Acknowledgements
