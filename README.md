@@ -8,6 +8,8 @@ Scripts to scrape contents (text and images) from www.amsterdam.nl and process t
   alt="amsterdam.nl homescreen">
 </figure>
 
+
+
 ## Background
 
 These scripts are designed to scrape and process the contents of the Amsterdam.nl website, extracting text and images for analysis and archival purposes. The project makes use of asynchronous requests to efficiently handle multiple pages and resources.
@@ -41,8 +43,6 @@ First, navigate to the scripts directory:
 ```bash
 cd scripts
 ```
-
-This will download and save all HTML pages and images from the specified URLs into designated directories.
 
 ### Step 2: Scrape HTML and Images
 
