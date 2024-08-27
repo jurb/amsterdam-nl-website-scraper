@@ -16,7 +16,7 @@ These scripts are designed to scrape and process the contents of the Amsterdam.n
 
 ## Folder Structure
 
- * [`scripts`](./sripts) _Scraper scripts_
+ * [`src`](./src) _scraper codebase_
 
 ## Installation
 
@@ -38,10 +38,10 @@ The code has been tested with Python 3.10.0 on Linux/MacOS/Windows.
 
 ### Step 1: Navigate to scripts
 
-First, navigate to the scripts directory:
+First, navigate to the source directory:
 
 ```bash
-cd scripts
+cd src
 ```
 
 ### Step 2: Scrape HTML and Images
