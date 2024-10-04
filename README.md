@@ -54,6 +54,8 @@ python3 scrape_amsterdam_nl.py
 
 This will download and save all HTML pages and images from the specified URLs into designated directories.
 
+**Note**: re-running this script also goes over the failed_html.txt file to retry failed htmls in previous iterations.
+
 ### Step 3: Convert HTML to Text
 
 Third, after scraping, run the `html_to_txt.py` script to convert the downloaded HTML pages into clean text files:
