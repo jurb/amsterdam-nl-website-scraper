@@ -95,54 +95,21 @@ def process_links(html_content, base_url="https://www.amsterdam.nl"):
     
     return str(soup)
 
-def extract_page_title(html_content):
+def transform_string(input_string):
     """
-    Extract the page title from Open Graph meta tag.
+    Transform input string into formatted markdown link.
     
     Args:
-        html_content (str): The HTML content to extract title from.
+        input_string (str): The filename (without extension).
         
     Returns:
-        str: The extracted page title, or None if not found.
+        str: The formatted page link using filename.
     """
-    soup = BeautifulSoup(html_content, 'html.parser')
-    
-    # Try to find og:title first
-    og_title = soup.find('meta', property='og:title')
-    if og_title and og_title.get('content'):
-        return og_title.get('content').strip()
-    
-    # Fallback to regular title tag
-    title_tag = soup.find('title')
-    if title_tag and title_tag.string:
-        return title_tag.string.strip()
-    
-    return None
-
-def create_page_link(filename, page_title=None):
-    """
-    Creates a page link using either the extracted page title or transformed filename.
-    
-    Args:
-        filename (str): The HTML filename (without extension).
-        page_title (str, optional): The extracted page title from og:title.
-        
-    Returns:
-        str: The formatted page link.
-    """
-    # Create URL from filename (same as transform_string)
-    input_string = filename.rstrip('_')
+    input_string = input_string.rstrip('_')
+    page_link_text = input_string.replace('-', ' ').replace('_', ' ')
     url_path = input_string.replace('_', '/')
-    url = f"https://www.amsterdam.nl/{url_path}/"
-    
-    # Use page title if available, otherwise transform filename
-    if page_title:
-        link_text = page_title
-    else:
-        # Fallback to transformed filename
-        link_text = input_string.replace('-', ' ').replace('_', ' ')
-    
-    return f"[PAGE LINK: {link_text}]({url})"
+    markdown_link = f"[PAGE LINK: {page_link_text}](https://www.amsterdam.nl/{url_path}/)"
+    return markdown_link
 
 def simple_condense(markdown_content):
     """
@@ -169,7 +136,7 @@ def simple_condense(markdown_content):
 
 def process_html_file(file_path, filename, converter):
     """
-    Processes an HTML file: creates PAGE LINK header using og:title + converts main content to condensed markdown.
+    Processes an HTML file: creates PAGE LINK header using filename + converts main content to condensed markdown.
 
     Args:
         file_path (str): Path to the HTML file.
@@ -182,9 +149,6 @@ def process_html_file(file_path, filename, converter):
     try:
         with open(file_path, 'r', encoding='utf-8') as file:
             html_content = file.read()
-        
-        # Extract page title from og:title meta tag
-        page_title = extract_page_title(html_content)
         
         # Extract main content HTML
         main_html = extract_main_content(filename, html_content)
@@ -200,9 +164,9 @@ def process_html_file(file_path, filename, converter):
         # Simple condensing (remove excessive empty lines)
         condensed_markdown = simple_condense(markdown_content)
         
-        # Create the PAGE LINK header using extracted title
+        # Create the PAGE LINK header using filename (like in txt script)
         base_name = os.path.splitext(filename)[0]
-        page_link_header = create_page_link(base_name, page_title)
+        page_link_header = transform_string(base_name)
         
         # Combine PAGE LINK header with condensed markdown content
         final_content = f"{page_link_header}\n\n{condensed_markdown}"
