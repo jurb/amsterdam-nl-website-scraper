@@ -5,3 +5,4 @@ tqdm
 lxml
 openpyxl
 asyncio
+html2text
