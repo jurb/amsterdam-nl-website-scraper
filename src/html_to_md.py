@@ -32,6 +32,66 @@ def setup_html2text_converter():
     
     return h
 
+def extract_metadata(soup, filename):
+    """
+    Extract metadata from HTML soup.
+    
+    Args:
+        soup (BeautifulSoup): Parsed HTML content.
+        filename (str): The HTML filename.
+        
+    Returns:
+        dict: Metadata dictionary with title, url, and filename.
+    """
+    # Try to get og:title first
+    og_title = soup.find('meta', property='og:title')
+    if og_title and og_title.get('content'):
+        title = og_title['content'].strip()
+    else:
+        # Fallback to regular title tag
+        title_tag = soup.find('title')
+        if title_tag and title_tag.string:
+            title = title_tag.string.strip()
+        else:
+            # Final fallback: create title from filename
+            base_name = os.path.splitext(filename)[0]
+            title = base_name.replace('_', ' ').replace('-', ' ').title()
+    
+    # Build URL from filename
+    base_name = os.path.splitext(filename)[0]
+    # Remove trailing underscore if present
+    base_name = base_name.rstrip('_')
+    # Replace underscores with forward slashes for URL path
+    url_path = base_name.replace('_', '/')
+    url = f"https://www.amsterdam.nl/{url_path}/"
+    
+    return {
+        'title': title,
+        'url': url,
+        'filename': filename
+    }
+
+def create_yaml_frontmatter(metadata):
+    """
+    Create YAML frontmatter from metadata.
+    
+    Args:
+        metadata (dict): Metadata dictionary.
+        
+    Returns:
+        str: YAML frontmatter string.
+    """
+    # Escape special characters in title for YAML
+    title = metadata['title'].replace('"', '\\"').replace('\n', ' ')
+    
+    frontmatter = f"""---
+title: "{title}"
+url: {metadata['url']}
+filename: {metadata['filename']}
+---"""
+    
+    return frontmatter
+
 def extract_main_content(filename, html_content):
     """
     Extracts the main content from HTML using CSS selectors.
@@ -95,22 +155,6 @@ def process_links(html_content, base_url="https://www.amsterdam.nl"):
     
     return str(soup)
 
-def transform_string(input_string):
-    """
-    Transform input string into formatted markdown link.
-    
-    Args:
-        input_string (str): The filename (without extension).
-        
-    Returns:
-        str: The formatted page link using filename.
-    """
-    input_string = input_string.rstrip('_')
-    page_link_text = input_string.replace('-', ' ').replace('_', ' ')
-    url_path = input_string.replace('_', '/')
-    markdown_link = f"[PAGE LINK: {page_link_text}](https://www.amsterdam.nl/{url_path}/)"
-    return markdown_link
-
 def simple_condense(markdown_content):
     """
     Simple condensing using regex - much simpler than the full function.
@@ -136,7 +180,8 @@ def simple_condense(markdown_content):
 
 def process_html_file(file_path, filename, converter):
     """
-    Processes an HTML file: creates PAGE LINK header using filename + converts main content to condensed markdown.
+    Processes an HTML file: extracts metadata, creates YAML frontmatter, 
+    and converts main content to condensed markdown.
 
     Args:
         file_path (str): Path to the HTML file.
@@ -144,11 +189,15 @@ def process_html_file(file_path, filename, converter):
         converter (html2text.HTML2Text): Configured converter instance.
 
     Returns:
-        str: PAGE LINK header + condensed markdown content.
+        str: YAML frontmatter + condensed markdown content.
     """
     try:
         with open(file_path, 'r', encoding='utf-8') as file:
             html_content = file.read()
+        
+        # Parse HTML to extract metadata
+        soup = BeautifulSoup(html_content, 'html.parser')
+        metadata = extract_metadata(soup, filename)
         
         # Extract main content HTML
         main_html = extract_main_content(filename, html_content)
@@ -164,12 +213,11 @@ def process_html_file(file_path, filename, converter):
         # Simple condensing (remove excessive empty lines)
         condensed_markdown = simple_condense(markdown_content)
         
-        # Create the PAGE LINK header using filename (like in txt script)
-        base_name = os.path.splitext(filename)[0]
-        page_link_header = transform_string(base_name)
+        # Create YAML frontmatter
+        yaml_frontmatter = create_yaml_frontmatter(metadata)
         
-        # Combine PAGE LINK header with condensed markdown content
-        final_content = f"{page_link_header}\n\n{condensed_markdown}"
+        # Combine YAML frontmatter + condensed markdown content
+        final_content = f"{yaml_frontmatter}\n\n{condensed_markdown}"
         
         return final_content
         
@@ -179,7 +227,7 @@ def process_html_file(file_path, filename, converter):
 
 def load_html_content(directory, output_directory):
     """
-    Loads HTML content from all files and converts to PAGE LINK + markdown format.
+    Loads HTML content from all files and converts to YAML frontmatter + markdown format.
 
     Args:
         directory (str): Path to the directory containing HTML files.
