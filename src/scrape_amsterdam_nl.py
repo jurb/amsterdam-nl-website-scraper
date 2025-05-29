@@ -8,6 +8,7 @@ from urllib.parse import urljoin, urlparse
 from collections import Counter, defaultdict
 from tqdm import tqdm
 import config as cfg
+import ssl
 
 # Directories to save images and HTML pages
 os.makedirs(cfg.IMAGE_DIR, exist_ok=True)
@@ -21,9 +22,34 @@ saved_html_set = set()
 failed_pages = []
 failed_images = []
 
+def get_url_alternative(url):
+    """
+    Get the alternative version of a URL (add/remove trailing slash).
+    
+    Args:
+        url (str): The original URL.
+    
+    Returns:
+        str: The alternative URL with opposite slash behavior.
+    """
+    if not url:
+        return url
+    
+    # Don't modify URLs that are just the root (e.g., "https://example.com/")
+    parsed = urlparse(url)
+    if parsed.path == '/' or parsed.path == '':
+        return url
+    
+    # Toggle trailing slash
+    if url.endswith('/'):
+        return url.rstrip('/')
+    else:
+        return url + '/'
+
 def get_html_file_name(url):
     """
     Generate the expected HTML file name from a URL.
+    Always normalizes to version without trailing slash for consistent file naming.
 
     Args:
         url (str): The URL to generate the file name for.
@@ -31,6 +57,12 @@ def get_html_file_name(url):
     Returns:
         str or None: The expected HTML file name, or None if not applicable.
     """
+    # Always normalize to version without trailing slash for consistent file naming
+    if url.endswith('/') and not url.endswith('//'):
+        parsed = urlparse(url)
+        if parsed.path != '/':  # Don't modify root URLs
+            url = url.rstrip('/')
+    
     parsed_url = urlparse(url)
     if parsed_url.netloc == 'www.amsterdam.nl':
         html_name = parsed_url.path.replace('/', '_') + '.html'
@@ -70,12 +102,15 @@ async def save_image(session, url):
         failed_images.append(url)
         return None
 
-def is_error_page(soup):
+def is_error_page(soup, url, content_length):
     """
     Check if the parsed HTML content represents an error page.
+    Now includes more detailed logging for debugging.
 
     Args:
         soup (BeautifulSoup): The parsed HTML content.
+        url (str): The URL being checked (for logging).
+        content_length (int): Length of the content.
 
     Returns:
         bool: True if it's an error page, False otherwise.
@@ -85,32 +120,46 @@ def is_error_page(soup):
     error_titles = [
         "Internal Server Error",
         "Error",
-        "Page Not Found",
+        "Page Not Found", 
         "404 Not Found",
         "Access Denied",
         "Service Unavailable"
     ]
-    if any(error_title in title for error_title in error_titles):
+    
+    title_has_error = any(error_title in title for error_title in error_titles)
+    if title_has_error:
+        print(f"DEBUG: Error detected in title for {url}: '{title}'")
         return True
 
     # Check for specific error messages in the body
     error_messages = [
         "An error occurred on the server",
-        "We apologize for the problem",
+        "We apologize for the problem", 
         "The page you are looking for doesn't exist",
         "This page cannot be found",
         "You don't have permission to access",
         "Service is temporarily unavailable"
     ]
+    
     body_text = soup.get_text()
-    if any(error_message in body_text for error_message in error_messages):
+    message_has_error = any(error_message in body_text for error_message in error_messages)
+    if message_has_error:
+        print(f"DEBUG: Error message detected in body for {url}")
         return True
 
+    # Check if content is suspiciously short (might indicate an error page)
+    if content_length < 500:
+        print(f"DEBUG: Suspiciously short content for {url}: {content_length} chars")
+        print(f"DEBUG: Title: '{title}'")
+        print(f"DEBUG: First 200 chars of body: '{body_text[:200]}'")
+        # Don't automatically reject short content, just log it
+        
     return False
 
 def save_html(url, content):
     """
     Save the HTML content of a URL to a file, unless it's an error page.
+    Enhanced with better debugging.
 
     Args:
         url (str): The URL of the page.
@@ -122,8 +171,8 @@ def save_html(url, content):
     try:
         soup = BeautifulSoup(content, 'html.parser')
 
-        # Check if the page is an error page
-        if is_error_page(soup):
+        # Check if the page is an error page with enhanced debugging
+        if is_error_page(soup, url, len(content)):
             print(f"Detected error page at {url}. Skipping save.")
             failed_pages.append(url)
             return False
@@ -135,6 +184,7 @@ def save_html(url, content):
             with open(html_path, 'w', encoding='utf-8') as f:
                 f.write(content)
             saved_html_set.add(url)
+            print(f"DEBUG: Successfully saved HTML for {url} ({len(content)} chars)")
         return True
     except Exception as e:
         print(f"Failed to save HTML for {url}: {e}")
@@ -156,13 +206,19 @@ def extract_data_from_content(url, content):
         page_soup = BeautifulSoup(content, 'html.parser')
 
         # Check if the page is an error page
-        if is_error_page(page_soup):
+        if is_error_page(page_soup, url, len(content)):
             print(f"Detected error page at {url}. Skipping processing.")
             failed_pages.append(url)
             return url, None
 
-        # Extract reference URLs and count them
-        ref_urls = [urljoin(url, a['href']) for a in page_soup.find_all('a', href=True) if a['href'].startswith(('http://', 'https://'))]
+        # Extract reference URLs and count them (preserve URLs as they appear)
+        ref_urls = []
+        for a in page_soup.find_all('a', href=True):
+            href = a['href']
+            if href.startswith(('http://', 'https://')):
+                full_url = urljoin(url, href)
+                ref_urls.append(full_url)
+        
         ref_url_counts = Counter(ref_urls)
         domain_counts = Counter(urlparse(ref_url).netloc for ref_url in ref_urls)
 
@@ -182,6 +238,7 @@ def extract_data_from_content(url, content):
 async def fetch_and_process_url(session, url):
     """
     Fetch and process a single URL to extract references and images.
+    Enhanced with better debugging and error handling.
 
     Args:
         session (aiohttp.ClientSession): The HTTP session to use for fetching.
@@ -190,22 +247,49 @@ async def fetch_and_process_url(session, url):
     Returns:
         tuple: The URL and a dictionary with domains, reference URLs, and image URLs.
     """
-    try:
-        async with session.get(url) as response:
-            response.raise_for_status()
-            page_content = await response.text()
+    urls_to_try = [url, get_url_alternative(url)]
+    last_exception = None
+    
+    print(f"DEBUG: Processing {url}")
+    print(f"DEBUG: Will try URLs: {urls_to_try}")
+    
+    for attempt_url in urls_to_try:
+        try:
+            print(f"DEBUG: Attempting to fetch {attempt_url}")
+            async with session.get(attempt_url) as response:
+                print(f"DEBUG: Got response {response.status} for {attempt_url}")
+                print(f"DEBUG: Response headers: {dict(response.headers)}")
+                
+                response.raise_for_status()
+                page_content = await response.text()
+                
+                print(f"DEBUG: Got {len(page_content)} chars of content from {attempt_url}")
+                
+                # Check if content is meaningful (not just empty or minimal)
+                if len(page_content.strip()) < 100:
+                    print(f"Got minimal content from {attempt_url}, trying alternative...")
+                    continue
 
-            # Save HTML content only if it's not an error page
-            if not save_html(url, page_content):
-                # If it's an error page, skip processing
-                return url, None
+                # Save HTML content only if it's not an error page
+                # Use original URL for consistent file naming
+                if not save_html(url, page_content):
+                    # If it's an error page, skip processing
+                    print(f"DEBUG: Skipping {url} due to error page detection")
+                    return url, None
 
-            # Extract data from content
-            return extract_data_from_content(url, page_content)
-    except Exception as e:
-        print(f"Failed to process {url}: {e}")
-        failed_pages.append(url)
-        return url, None
+                # Extract data from content
+                print(f"Successfully fetched {attempt_url}")
+                return extract_data_from_content(url, page_content)
+                
+        except Exception as e:
+            print(f"Failed to fetch {attempt_url}: {type(e).__name__}: {e}")
+            last_exception = e
+            continue
+    
+    # If we get here, both attempts failed
+    print(f"Failed to process {url} with both trailing slash variants. Last error: {last_exception}")
+    failed_pages.append(url)
+    return url, None
 
 async def process_existing_html(url):
     """
@@ -245,7 +329,22 @@ async def process_images(image_urls):
     Returns:
         list: A list of successfully saved image names.
     """
-    async with aiohttp.ClientSession() as session:
+    # Create session with proper headers for image downloads too
+    timeout = aiohttp.ClientTimeout(total=30, connect=10)
+    connector = aiohttp.TCPConnector(ssl=False, limit=10)
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9,nl;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Sec-Fetch-Dest': 'image',
+        'Sec-Fetch-Mode': 'no-cors',
+        'Sec-Fetch-Site': 'same-origin',
+    }
+    
+    async with aiohttp.ClientSession(timeout=timeout, connector=connector, headers=headers) as session:
         saved_images = await asyncio.gather(*[save_image(session, img_url) for img_url in image_urls])
     return [img for img in saved_images if img]  # Remove failed downloads
 
@@ -316,9 +415,50 @@ async def retry_failed_pages(session, max_retries=5):
         if not failed_pages:
             break  # Stop if all retries succeeded
 
+def create_session():
+    """
+    Create an aiohttp session with browser-like headers and proper configuration.
+    
+    Returns:
+        aiohttp.ClientSession: Configured session
+    """
+    # Browser-like headers
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'Accept-Language': 'en-US,en;q=0.9,nl;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Cache-Control': 'max-age=0',
+    }
+    
+    # Timeout configuration (increase timeouts)
+    timeout = aiohttp.ClientTimeout(total=60, connect=15)
+    
+    # SSL configuration (disable SSL verification if needed)
+    connector = aiohttp.TCPConnector(
+        ssl=False,  # Try with SSL disabled first
+        limit=10,   # Limit concurrent connections
+        force_close=True,
+        enable_cleanup_closed=True
+    )
+    
+    return aiohttp.ClientSession(
+        timeout=timeout,
+        connector=connector,
+        headers=headers
+    )
+
 async def main(sitemap_url=None, additional_urls=[]):
     """
     Main function to process the sitemap and extract data from each URL.
+    Enhanced with better session configuration.
 
     Args:
         sitemap_url (str): The URL of the sitemap.
@@ -334,7 +474,7 @@ async def main(sitemap_url=None, additional_urls=[]):
     urls = []
 
     if sitemap_url:
-        async with aiohttp.ClientSession() as session:
+        async with create_session() as session:
             async with session.get(sitemap_url) as response:
                 response.raise_for_status()
                 sitemap_content = await response.text()
@@ -343,6 +483,7 @@ async def main(sitemap_url=None, additional_urls=[]):
         soup = BeautifulSoup(sitemap_content, 'lxml-xml')
         sitemap_urls = [loc.text for loc in soup.find_all('loc')]
         urls.extend(sitemap_urls)
+        print(f"Found {len(sitemap_urls)} URLs in sitemap")
 
     # Add additional URLs
     urls.extend(additional_urls)
@@ -357,6 +498,7 @@ async def main(sitemap_url=None, additional_urls=[]):
 
     # Remove duplicates
     urls = list(set(urls))
+    print(f"Total unique URLs to process: {len(urls)}")
 
     # Load existing HTML file names
     existing_html_files = set(os.listdir(cfg.HTML_DIR))
@@ -385,7 +527,7 @@ async def main(sitemap_url=None, additional_urls=[]):
     # Scrape and process new URLs
     if urls_to_scrape:
         print(f"Scraping and processing {len(urls_to_scrape)} new URLs...")
-        async with aiohttp.ClientSession() as session:
+        async with create_session() as session:
             tasks = [fetch_and_process_url(session, url) for url in urls_to_scrape]
 
             for future in tqdm(asyncio.as_completed(tasks), total=len(tasks), desc="Processing new URLs"):
