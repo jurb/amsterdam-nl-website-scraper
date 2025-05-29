@@ -1,3 +1,20 @@
+This forks adds a `html_to_md.py` script that uses the `html2text` library to convert the scraped html to 'valid' markdown, like `# heading`, `**formatting**`, `[link](#)`. I think this will give LLMs a little bit more semantic context.
+
+Usage:
+
+```
+pip install -r requirements.txt
+python3 scrape_amsterdam_nl.py
+python3 html_to_md.py
+```
+
+You can also use `uv` to run the scripts in isolation
+
+```
+uv run --with aiohttp --with pandas --with tqdm --with lxml --with openpyxl --with asyncio scrape_amsterdam_nl.py
+uv run --with beautifulsoup4 --with tqdm --with html2text html_to_md.py
+```
+
 # Amsterdam.nl Web Scraper
 
 Scripts to scrape contents (text and images) from www.amsterdam.nl and process the HTML into clean text files.
