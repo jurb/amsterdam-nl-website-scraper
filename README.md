@@ -1,5 +1,7 @@
 This forks adds a `html_to_md.py` script that uses the `html2text` library to convert the scraped html to 'valid' markdown, like `# heading`, `**formatting**`, `[link](#)`. I think this will give LLMs a little bit more semantic context.
 
+It also updates the scrape script with more retries and an agent, which helps to get all pages. After running it 3 times I had only a few entries left in failed_html.txt. Before hundreds failed, mostly because of trailing slash errors.
+
 Usage:
 
 ```
