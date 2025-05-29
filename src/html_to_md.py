@@ -32,6 +32,38 @@ def setup_html2text_converter():
     
     return h
 
+def extract_dcterms_metadata(html_content):
+    """
+    Extracts DCTERMS metadata from HTML content.
+    
+    Args:
+        html_content (str): HTML content to extract metadata from.
+        
+    Returns:
+        dict: Dictionary containing DCTERMS metadata.
+    """
+    soup = BeautifulSoup(html_content, 'html.parser')
+    metadata = {}
+    
+    # Extract DCTERMS metadata
+    dcterms_identifier = soup.find('meta', attrs={'name': 'DCTERMS.identifier'})
+    if dcterms_identifier:
+        metadata['page_source'] = dcterms_identifier.get('content', '').strip()
+    
+    dcterms_title = soup.find('meta', attrs={'name': 'DCTERMS.title'})
+    if dcterms_title:
+        metadata['page_title'] = dcterms_title.get('content', '').strip()
+    
+    dcterms_modified = soup.find('meta', attrs={'name': 'DCTERMS.modified'})
+    if dcterms_modified:
+        metadata['page_modified'] = dcterms_modified.get('content', '').strip()
+    
+    dcterms_available = soup.find('meta', attrs={'name': 'DCTERMS.available'})
+    if dcterms_available:
+        metadata['page_available'] = dcterms_available.get('content', '').strip()
+    
+    return metadata
+
 def extract_main_content(filename, html_content):
     """
     Extracts the main content from HTML using CSS selectors.
@@ -127,6 +159,34 @@ def clean_markdown(markdown_content):
     
     return '\n'.join(cleaned_lines).strip()
 
+def create_frontmatter(metadata):
+    """
+    Creates YAML frontmatter with DCTERMS metadata.
+
+    Args:
+        metadata (dict): Dictionary containing DCTERMS metadata.
+
+    Returns:
+        str: YAML frontmatter block.
+    """
+    frontmatter_lines = ["---"]
+    
+    if 'page_source' in metadata:
+        frontmatter_lines.append(f'page_source: "{metadata["page_source"]}"')
+    
+    if 'page_title' in metadata:
+        frontmatter_lines.append(f'page_title: "{metadata["page_title"]}"')
+    
+    if 'page_modified' in metadata:
+        frontmatter_lines.append(f'page_modified: "{metadata["page_modified"]}"')
+    
+    if 'page_available' in metadata:
+        frontmatter_lines.append(f'page_available: "{metadata["page_available"]}"')
+    
+    frontmatter_lines.append("---")
+    
+    return "\n".join(frontmatter_lines)
+
 def process_html_file(file_path, filename, converter):
     """
     Processes an HTML file to extract main content and convert it to Markdown.
@@ -137,16 +197,19 @@ def process_html_file(file_path, filename, converter):
         converter (html2text.HTML2Text): Configured converter instance.
 
     Returns:
-        str: Processed Markdown content.
+        tuple: (markdown_content, metadata) - Processed Markdown content and extracted metadata.
     """
     try:
         with open(file_path, 'r', encoding='utf-8') as file:
             html_content = file.read()
         
+        # Extract DCTERMS metadata from the full HTML
+        metadata = extract_dcterms_metadata(html_content)
+        
         # Extract main content
         main_html = extract_main_content(filename, html_content)
         if not main_html:
-            return ""
+            return "", {}
         
         # Process links to make them absolute
         processed_html = process_links(main_html)
@@ -157,11 +220,11 @@ def process_html_file(file_path, filename, converter):
         # Clean up the markdown
         cleaned_markdown = clean_markdown(markdown_content)
         
-        return cleaned_markdown
+        return cleaned_markdown, metadata
         
     except Exception as e:
         print(f"Error processing {filename}: {e}")
-        return ""
+        return "", {}
 
 def load_html_content(directory, output_directory):
     """
@@ -185,7 +248,7 @@ def load_html_content(directory, output_directory):
         try:
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(process_html_file, file_path, filename, converter)
-                processed_markdown = future.result(timeout=30)
+                processed_markdown, metadata = future.result(timeout=30)
             
             if processed_markdown:
                 # Generate output filename
@@ -193,6 +256,9 @@ def load_html_content(directory, output_directory):
                 output_file_path = os.path.join(output_directory, f"{base_name}.txt")
                 
                 with open(output_file_path, 'w', encoding='utf-8') as output_file:
+                    # Write the YAML frontmatter with DCTERMS metadata
+                    output_file.write(f"{create_frontmatter(metadata)}\n\n")
+                    # Write the processed markdown content
                     output_file.write(processed_markdown)
             else:
                 print(f"No content extracted from {filename}")
