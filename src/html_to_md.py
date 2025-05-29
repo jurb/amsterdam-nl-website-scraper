@@ -190,7 +190,7 @@ def load_html_content(directory, output_directory):
             if processed_markdown:
                 # Generate output filename
                 base_name = os.path.splitext(filename)[0]
-                output_file_path = os.path.join(output_directory, f"{base_name}.md")
+                output_file_path = os.path.join(output_directory, f"{base_name}.txt")
                 
                 with open(output_file_path, 'w', encoding='utf-8') as output_file:
                     output_file.write(processed_markdown)
