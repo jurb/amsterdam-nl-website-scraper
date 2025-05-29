@@ -11,7 +11,7 @@ python3 html_to_md.py
 You can also use `uv` to run the scripts in isolation
 
 ```
-uv run --with beautifulsoup4 --with aiohttp --with pandas --with tqdm --with lxml --with openpyxl --with asyncio scrape_amsterdam_nl.py
+uv run --with beautifulsoup4 --with aiohttp --with pandas --with tqdm --with lxml --with openpyxl --with asyncio --with brotli scrape_amsterdam_nl.py
 uv run --with beautifulsoup4 --with tqdm --with html2text html_to_md.py
 ```
 
