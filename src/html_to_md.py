@@ -5,19 +5,19 @@ from tqdm import tqdm
 import concurrent.futures
 import config as cfg
 
-# Directories to save markdown pages
+# Directories to save txt pages
 os.makedirs(cfg.TXT_DIR, exist_ok=True)
 
 def setup_html2text_converter():
     """
-    Sets up and configures the html2text converter for clean markdown output.
+    Sets up and configures the html2text converter for condensed markdown output.
     
     Returns:
         html2text.HTML2Text: Configured converter instance.
     """
     h = html2text.HTML2Text()
     
-    # Configure for clean, standard markdown
+    # Configure for condensed, clean markdown
     h.ignore_links = False
     h.ignore_images = False
     h.ignore_emphasis = False
@@ -31,38 +31,6 @@ def setup_html2text_converter():
     h.wrap_list_items = False
     
     return h
-
-def extract_dcterms_metadata(html_content):
-    """
-    Extracts DCTERMS metadata from HTML content.
-    
-    Args:
-        html_content (str): HTML content to extract metadata from.
-        
-    Returns:
-        dict: Dictionary containing DCTERMS metadata.
-    """
-    soup = BeautifulSoup(html_content, 'html.parser')
-    metadata = {}
-    
-    # Extract DCTERMS metadata
-    dcterms_identifier = soup.find('meta', attrs={'name': 'DCTERMS.identifier'})
-    if dcterms_identifier:
-        metadata['page_source'] = dcterms_identifier.get('content', '').strip()
-    
-    dcterms_title = soup.find('meta', attrs={'name': 'DCTERMS.title'})
-    if dcterms_title:
-        metadata['page_title'] = dcterms_title.get('content', '').strip()
-    
-    dcterms_modified = soup.find('meta', attrs={'name': 'DCTERMS.modified'})
-    if dcterms_modified:
-        metadata['page_modified'] = dcterms_modified.get('content', '').strip()
-    
-    dcterms_available = soup.find('meta', attrs={'name': 'DCTERMS.available'})
-    if dcterms_available:
-        metadata['page_available'] = dcterms_available.get('content', '').strip()
-    
-    return metadata
 
 def extract_main_content(filename, html_content):
     """
@@ -127,69 +95,81 @@ def process_links(html_content, base_url="https://www.amsterdam.nl"):
     
     return str(soup)
 
-def clean_markdown(markdown_content):
+def extract_page_title(html_content):
     """
-    Cleans up the markdown content by removing excessive whitespace.
+    Extract the page title from Open Graph meta tag.
     
     Args:
-        markdown_content (str): Raw markdown content.
+        html_content (str): The HTML content to extract title from.
         
     Returns:
-        str: Cleaned markdown content.
+        str: The extracted page title, or None if not found.
     """
-    if not markdown_content:
-        return ""
+    soup = BeautifulSoup(html_content, 'html.parser')
     
-    # Split into lines and clean up
-    lines = markdown_content.split('\n')
-    cleaned_lines = []
+    # Try to find og:title first
+    og_title = soup.find('meta', property='og:title')
+    if og_title and og_title.get('content'):
+        return og_title.get('content').strip()
     
-    prev_empty = False
-    for line in lines:
-        stripped = line.rstrip()  # Keep leading spaces for indentation
-        
-        # Skip multiple consecutive empty lines
-        if not stripped:
-            if not prev_empty:
-                cleaned_lines.append('')
-            prev_empty = True
-        else:
-            cleaned_lines.append(stripped)
-            prev_empty = False
+    # Fallback to regular title tag
+    title_tag = soup.find('title')
+    if title_tag and title_tag.string:
+        return title_tag.string.strip()
     
-    return '\n'.join(cleaned_lines).strip()
+    return None
 
-def create_frontmatter(metadata):
+def create_page_link(filename, page_title=None):
     """
-    Creates YAML frontmatter with DCTERMS metadata.
-
+    Creates a page link using either the extracted page title or transformed filename.
+    
     Args:
-        metadata (dict): Dictionary containing DCTERMS metadata.
-
+        filename (str): The HTML filename (without extension).
+        page_title (str, optional): The extracted page title from og:title.
+        
     Returns:
-        str: YAML frontmatter block.
+        str: The formatted page link.
     """
-    frontmatter_lines = ["---"]
+    # Create URL from filename (same as transform_string)
+    input_string = filename.rstrip('_')
+    url_path = input_string.replace('_', '/')
+    url = f"https://www.amsterdam.nl/{url_path}/"
     
-    if 'page_source' in metadata:
-        frontmatter_lines.append(f'page_source: "{metadata["page_source"]}"')
+    # Use page title if available, otherwise transform filename
+    if page_title:
+        link_text = page_title
+    else:
+        # Fallback to transformed filename
+        link_text = input_string.replace('-', ' ').replace('_', ' ')
     
-    if 'page_title' in metadata:
-        frontmatter_lines.append(f'page_title: "{metadata["page_title"]}"')
+    return f"[PAGE LINK: {link_text}]({url})"
+
+def simple_condense(markdown_content):
+    """
+    Simple condensing using regex - much simpler than the full function.
     
-    if 'page_modified' in metadata:
-        frontmatter_lines.append(f'page_modified: "{metadata["page_modified"]}"')
+    Args:
+        markdown_content (str): Raw markdown content from html2text.
+        
+    Returns:
+        str: Simply condensed markdown content.
+    """
+    import re
     
-    if 'page_available' in metadata:
-        frontmatter_lines.append(f'page_available: "{metadata["page_available"]}"')
+    # Remove multiple consecutive empty lines, replace with single empty line
+    condensed = re.sub(r'\n\s*\n\s*\n+', '\n\n', markdown_content)
     
-    frontmatter_lines.append("---")
+    # Remove trailing whitespace from each line
+    condensed = '\n'.join(line.rstrip() for line in condensed.split('\n'))
     
-    return "\n".join(frontmatter_lines)
+    # Remove leading/trailing empty lines
+    condensed = condensed.strip()
+    
+    return condensed
 
 def process_html_file(file_path, filename, converter):
     """
-    Processes an HTML file to extract main content and convert it to Markdown.
+    Processes an HTML file: creates PAGE LINK header using og:title + converts main content to condensed markdown.
 
     Args:
         file_path (str): Path to the HTML file.
@@ -197,45 +177,49 @@ def process_html_file(file_path, filename, converter):
         converter (html2text.HTML2Text): Configured converter instance.
 
     Returns:
-        tuple: (markdown_content, metadata) - Processed Markdown content and extracted metadata.
+        str: PAGE LINK header + condensed markdown content.
     """
     try:
         with open(file_path, 'r', encoding='utf-8') as file:
             html_content = file.read()
         
-        # Extract DCTERMS metadata from the full HTML
-        metadata = extract_dcterms_metadata(html_content)
+        # Extract page title from og:title meta tag
+        page_title = extract_page_title(html_content)
         
-        # Extract main content
+        # Extract main content HTML
         main_html = extract_main_content(filename, html_content)
         if not main_html:
-            return "", {}
+            return ""
         
         # Process links to make them absolute
         processed_html = process_links(main_html)
         
-        # Convert to markdown
+        # Convert to markdown using html2text
         markdown_content = converter.handle(processed_html)
         
-        # Clean up the markdown
-        cleaned_markdown = clean_markdown(markdown_content)
+        # Simple condensing (remove excessive empty lines)
+        condensed_markdown = simple_condense(markdown_content)
         
-        return cleaned_markdown, metadata
+        # Create the PAGE LINK header using extracted title
+        base_name = os.path.splitext(filename)[0]
+        page_link_header = create_page_link(base_name, page_title)
+        
+        # Combine PAGE LINK header with condensed markdown content
+        final_content = f"{page_link_header}\n\n{condensed_markdown}"
+        
+        return final_content
         
     except Exception as e:
         print(f"Error processing {filename}: {e}")
-        return "", {}
+        return ""
 
 def load_html_content(directory, output_directory):
     """
-    Loads HTML content from all files in the specified directory and saves as clean markdown.
+    Loads HTML content from all files and converts to PAGE LINK + markdown format.
 
     Args:
         directory (str): Path to the directory containing HTML files.
-        output_directory (str): Path to the directory where output markdown files will be saved.
-
-    Returns:
-        None
+        output_directory (str): Path to the directory where output text files will be saved.
     """
     # Set up the converter once
     converter = setup_html2text_converter()
@@ -248,18 +232,15 @@ def load_html_content(directory, output_directory):
         try:
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(process_html_file, file_path, filename, converter)
-                processed_markdown, metadata = future.result(timeout=30)
+                processed_content = future.result(timeout=30)
             
-            if processed_markdown:
+            if processed_content:
                 # Generate output filename
                 base_name = os.path.splitext(filename)[0]
                 output_file_path = os.path.join(output_directory, f"{base_name}.txt")
                 
                 with open(output_file_path, 'w', encoding='utf-8') as output_file:
-                    # Write the YAML frontmatter with DCTERMS metadata
-                    output_file.write(f"{create_frontmatter(metadata)}\n\n")
-                    # Write the processed markdown content
-                    output_file.write(processed_markdown)
+                    output_file.write(processed_content)
             else:
                 print(f"No content extracted from {filename}")
                 
