@@ -1,9 +1,12 @@
+/data/*
+
 # Adapt to your needs. This version includes typical data files we work with, along with the default python template.
 
 # Text / html
 *.csv
 *.txt
 *.html
+*.md
 
 # Geo data
 *.gml
@@ -27,6 +30,8 @@
 *.png
 *.jpg
 *.bmp
+*.jpeg
+
 
 # Numpy compressed
 *.npz
