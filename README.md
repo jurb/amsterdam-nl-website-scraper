@@ -1,6 +1,6 @@
 # Amsterdam.nl Web Scraper
 
-Scrape www.amsterdam.nl and convert HTML to clean text or markdown. Uses asynchronous requests for efficient scraping. Includes retry logic for failed URLs and whitelisted user agent (SubsidiemaatjeBot).
+Scrape www.amsterdam.nl and convert HTML to clean text or markdown. Uses asynchronous requests for efficient scraping. Includes retry logic for failed URLs and whitelisted user agent for /subsidies pages
 
 <figure align="center">
   <img src="media/homescreen.png" alt="amsterdam.nl homescreen">
@@ -18,14 +18,14 @@ Tested with Python 3.10.0 on Linux/MacOS/Windows.
 
 ## Usage
 
-### Basic scraping (entire sitemap)
+### Basic scraping (entire sitemap, blocked unless whitelisted)
 
 ```bash
 cd src
 python3 scrape_amsterdam_nl.py
 ```
 
-### Scrape specific sections using JSON index (recommended)
+### Scrape specific sections using JSON index (recommended for partial whitelisted user agents)
 
 ```bash
 cd src
