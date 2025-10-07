@@ -9,6 +9,7 @@ from collections import Counter, defaultdict
 from tqdm import tqdm
 import config as cfg
 import ssl
+import argparse
 
 # Directories to save images and HTML pages
 os.makedirs(cfg.IMAGE_DIR, exist_ok=True)
@@ -333,7 +334,7 @@ async def process_images(image_urls):
     timeout = aiohttp.ClientTimeout(total=30, connect=10)
     connector = aiohttp.TCPConnector(ssl=False, limit=10)
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': 'SubsidiemaatjeBot',
         'Accept': 'image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9,nl;q=0.8',
         'Accept-Encoding': 'gzip, deflate, br',
@@ -422,9 +423,9 @@ def create_session():
     Returns:
         aiohttp.ClientSession: Configured session
     """
-    # Browser-like headers
+    # Browser-like headers with whitelisted user agent
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': 'SubsidiemaatjeBot',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
         'Accept-Language': 'en-US,en;q=0.9,nl;q=0.8',
         'Accept-Encoding': 'gzip, deflate, br',
@@ -455,14 +456,16 @@ def create_session():
         headers=headers
     )
 
-async def main(sitemap_url=None, additional_urls=[]):
+async def main(sitemap_url=None, json_index_url=None, additional_urls=[], path_filter=None):
     """
-    Main function to process the sitemap and extract data from each URL.
+    Main function to process the sitemap/index and extract data from each URL.
     Enhanced with better session configuration.
 
     Args:
         sitemap_url (str): The URL of the sitemap.
+        json_index_url (str): The URL of a JSON index (e.g., with ?new_json=true&pager_rows=500).
         additional_urls (list): A list of additional URLs to process.
+        path_filter (str): Optional path filter to only scrape URLs containing this path (e.g., '/subsidies').
 
     Returns:
         None
@@ -473,7 +476,26 @@ async def main(sitemap_url=None, additional_urls=[]):
 
     urls = []
 
-    if sitemap_url:
+    if json_index_url:
+        async with create_session() as session:
+            async with session.get(json_index_url) as response:
+                response.raise_for_status()
+                json_content = await response.text()
+
+        # Parse JSON index
+        json_data = json.loads(json_content)
+        json_urls = [item['source_url'] for item in json_data if 'source_url' in item]
+
+        # Apply path filter if specified
+        if path_filter:
+            filtered_urls = [url for url in json_urls if path_filter in urlparse(url).path]
+            urls.extend(filtered_urls)
+            print(f"Found {len(json_urls)} URLs in JSON index, {len(filtered_urls)} matching path filter '{path_filter}'")
+        else:
+            urls.extend(json_urls)
+            print(f"Found {len(json_urls)} URLs in JSON index")
+
+    elif sitemap_url:
         async with create_session() as session:
             async with session.get(sitemap_url) as response:
                 response.raise_for_status()
@@ -482,8 +504,15 @@ async def main(sitemap_url=None, additional_urls=[]):
         # Parse sitemap
         soup = BeautifulSoup(sitemap_content, 'lxml-xml')
         sitemap_urls = [loc.text for loc in soup.find_all('loc')]
-        urls.extend(sitemap_urls)
-        print(f"Found {len(sitemap_urls)} URLs in sitemap")
+
+        # Apply path filter if specified
+        if path_filter:
+            filtered_urls = [url for url in sitemap_urls if path_filter in urlparse(url).path]
+            urls.extend(filtered_urls)
+            print(f"Found {len(sitemap_urls)} URLs in sitemap, {len(filtered_urls)} matching path filter '{path_filter}'")
+        else:
+            urls.extend(sitemap_urls)
+            print(f"Found {len(sitemap_urls)} URLs in sitemap")
 
     # Add additional URLs
     urls.extend(additional_urls)
@@ -577,12 +606,25 @@ async def main(sitemap_url=None, additional_urls=[]):
         open(cfg.FAILED_IMAGES_FILE, 'w').close()
         print(f"No failed images. {cfg.FAILED_IMAGES_FILE} has been cleared.")
 
-# Run the main function
-sitemap_url = 'https://www.amsterdam.nl/sitemap.xml'
+if __name__ == '__main__':
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description='Scrape amsterdam.nl website')
+    parser.add_argument('--path_filter', type=str, default=None,
+                        help='Only scrape URLs containing this path (e.g., /subsidies) - only works with --sitemap_url')
+    parser.add_argument('--sitemap_url', type=str, default=None,
+                        help='URL of the sitemap to scrape (default: https://www.amsterdam.nl/sitemap.xml)')
+    parser.add_argument('--json_index_url', type=str, default=None,
+                        help='URL of a JSON index page (e.g., https://www.amsterdam.nl/subsidies/subsidies-alfabet?new_json=true&pager_rows=500)')
+    args = parser.parse_args()
 
-# List of additional URLs to process
-additional_urls = [
-    # Add more URLs as needed
-]
+    # Default to sitemap if neither is specified
+    if not args.sitemap_url and not args.json_index_url:
+        args.sitemap_url = 'https://www.amsterdam.nl/sitemap.xml'
 
-asyncio.run(main(sitemap_url=sitemap_url, additional_urls=additional_urls))
+    # List of additional URLs to process
+    additional_urls = [
+        # Add more URLs as needed
+    ]
+
+    asyncio.run(main(sitemap_url=args.sitemap_url, json_index_url=args.json_index_url,
+                     additional_urls=additional_urls, path_filter=args.path_filter))
