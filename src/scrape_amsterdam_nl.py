@@ -456,13 +456,14 @@ def create_session():
         headers=headers
     )
 
-async def main(sitemap_url=None, json_index_url=None, additional_urls=[], path_filter=None):
+async def main(sitemap_url=None, sitemap_file=None, json_index_url=None, additional_urls=[], path_filter=None):
     """
     Main function to process the sitemap/index and extract data from each URL.
     Enhanced with better session configuration.
 
     Args:
         sitemap_url (str): The URL of the sitemap.
+        sitemap_file (str): The path to a local sitemap file.
         json_index_url (str): The URL of a JSON index (e.g., with ?new_json=true&pager_rows=500).
         additional_urls (list): A list of additional URLs to process.
         path_filter (str): Optional path filter to only scrape URLs containing this path (e.g., '/subsidies').
@@ -494,6 +495,24 @@ async def main(sitemap_url=None, json_index_url=None, additional_urls=[], path_f
         else:
             urls.extend(json_urls)
             print(f"Found {len(json_urls)} URLs in JSON index")
+
+    elif sitemap_file:
+        # Read sitemap from local file
+        with open(sitemap_file, 'r', encoding='utf-8') as f:
+            sitemap_content = f.read()
+
+        # Parse sitemap
+        soup = BeautifulSoup(sitemap_content, 'lxml-xml')
+        sitemap_urls = [loc.text for loc in soup.find_all('loc')]
+
+        # Apply path filter if specified
+        if path_filter:
+            filtered_urls = [url for url in sitemap_urls if path_filter in urlparse(url).path]
+            urls.extend(filtered_urls)
+            print(f"Found {len(sitemap_urls)} URLs in sitemap file, {len(filtered_urls)} matching path filter '{path_filter}'")
+        else:
+            urls.extend(sitemap_urls)
+            print(f"Found {len(sitemap_urls)} URLs in sitemap file")
 
     elif sitemap_url:
         async with create_session() as session:
@@ -610,15 +629,17 @@ if __name__ == '__main__':
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description='Scrape amsterdam.nl website')
     parser.add_argument('--path_filter', type=str, default=None,
-                        help='Only scrape URLs containing this path (e.g., /subsidies) - only works with --sitemap_url')
+                        help='Only scrape URLs containing this path (e.g., /subsidies)')
     parser.add_argument('--sitemap_url', type=str, default=None,
                         help='URL of the sitemap to scrape (default: https://www.amsterdam.nl/sitemap.xml)')
+    parser.add_argument('--sitemap_file', type=str, default=None,
+                        help='Path to a local sitemap file')
     parser.add_argument('--json_index_url', type=str, default=None,
                         help='URL of a JSON index page (e.g., https://www.amsterdam.nl/subsidies/subsidies-alfabet?new_json=true&pager_rows=500)')
     args = parser.parse_args()
 
-    # Default to sitemap if neither is specified
-    if not args.sitemap_url and not args.json_index_url:
+    # Default to sitemap if none is specified
+    if not args.sitemap_url and not args.sitemap_file and not args.json_index_url:
         args.sitemap_url = 'https://www.amsterdam.nl/sitemap.xml'
 
     # List of additional URLs to process
@@ -626,5 +647,6 @@ if __name__ == '__main__':
         # Add more URLs as needed
     ]
 
-    asyncio.run(main(sitemap_url=args.sitemap_url, json_index_url=args.json_index_url,
+    asyncio.run(main(sitemap_url=args.sitemap_url, sitemap_file=args.sitemap_file,
+                     json_index_url=args.json_index_url,
                      additional_urls=additional_urls, path_filter=args.path_filter))
